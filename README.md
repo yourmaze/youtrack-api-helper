@@ -1,18 +1,18 @@
 # YouTrack API Helper
 
-Small shell helper for calling the YouTrack REST API with a permanent token.
+Небольшой shell-скрипт для работы с YouTrack REST API через permanent token.
 
-The package intentionally does not contain real tokens, private environment files, or company-specific issue keys.
+В пакете нет реальных токенов, приватных `.env`-файлов, внутренних URL или рабочих ключей задач. Каждый пользователь создает свой токен и хранит его локально.
 
-## Files
+## Что внутри
 
-- `yt-api` - wrapper around `curl` for YouTrack REST API calls.
-- `.env.example` - example credentials file.
-- `SKILL.md` - optional Codex skill instructions for using this helper safely.
+- `yt-api` - обертка над `curl` для запросов в YouTrack REST API.
+- `.env.example` - пример файла с настройками.
+- `SKILL.md` - дополнительная инструкция для Codex, если хочется подключить helper как навык.
 
-## Install
+## Установка
 
-Clone the repository:
+Склонируйте репозиторий:
 
 ```bash
 git clone https://github.com/yourmaze/youtrack-api-helper.git
@@ -20,26 +20,28 @@ cd youtrack-api-helper
 chmod +x yt-api
 ```
 
-Optionally add the folder to `PATH`, or call the script by path:
+Скрипт можно запускать из папки проекта:
 
 ```bash
 ./yt-api GET '/api/users/me?fields=id,login,fullName'
 ```
 
-## Create a YouTrack Token
+При желании папку можно добавить в `PATH`, чтобы запускать `yt-api` из любого места.
 
-1. Open YouTrack.
-2. Open your user profile.
-3. Go to account security, authentication, or permanent tokens.
-4. Create a new permanent token.
-5. Select the `YouTrack` scope.
-6. Copy the token once and store it only in your local secret file.
+## Как получить токен YouTrack
 
-Permanent tokens authorize REST API calls with the permissions of the user who created the token.
+1. Откройте YouTrack.
+2. Перейдите в профиль пользователя.
+3. Найдите раздел безопасности, authentication или permanent tokens.
+4. Создайте новый permanent token.
+5. Выберите scope `YouTrack`.
+6. Скопируйте токен и сохраните его только в локальный файл с секретами.
 
-## Configure Credentials
+Permanent token работает с правами пользователя, который его создал. Если у пользователя нет доступа к проекту или операции, API тоже вернет ошибку доступа.
 
-Create a local credentials file:
+## Настройка подключения
+
+Создайте локальный файл с секретами:
 
 ```bash
 mkdir -p ~/.config/youtrack-api-helper
@@ -47,68 +49,72 @@ cp .env.example ~/.config/youtrack-api-helper/youtrack.env
 chmod 600 ~/.config/youtrack-api-helper/youtrack.env
 ```
 
-Edit it:
+Откройте файл:
 
 ```bash
 nano ~/.config/youtrack-api-helper/youtrack.env
 ```
 
-Example:
+Пример содержимого:
 
 ```bash
 YOUTRACK_URL=https://youtrack.example.com
 YOUTRACK_TOKEN=perm:your-token
 ```
 
-You can also use a different credentials file:
+Если нужно использовать другой файл с секретами, передайте путь через переменную `YOUTRACK_ENV_FILE`:
 
 ```bash
 YOUTRACK_ENV_FILE=/path/to/youtrack.env ./yt-api GET '/api/users/me?fields=id,login,fullName'
 ```
 
-## Check Connection
+## Проверка подключения
 
 ```bash
 ./yt-api GET '/api/users/me?fields=id,login,fullName'
 ```
 
-## Read an Issue
+Если все настроено правильно, YouTrack вернет информацию о текущем пользователе.
+
+## Прочитать задачу
 
 ```bash
 ./yt-api GET '/api/issues/PROJECT-123?fields=idReadable,summary,description'
 ```
 
-For richer context:
+Более подробный вариант:
 
 ```bash
 ./yt-api GET '/api/issues/PROJECT-123?fields=id,idReadable,summary,description,project(shortName,name),customFields(name,value(name,localizedName,presentation,text,id)),comments(id,text,author(login,fullName),created,updated)'
 ```
 
-## Add a Comment
+## Добавить комментарий
 
 ```bash
-./yt-api POST '/api/issues/PROJECT-123/comments?fields=id,text' '{"text":"Comment text"}'
+./yt-api POST '/api/issues/PROJECT-123/comments?fields=id,text' '{"text":"Текст комментария"}'
 ```
 
-## Create an Issue
+## Создать задачу
 
-Issue creation uses `POST /api/issues`. The exact JSON depends on the target project and its custom fields, so first inspect project and field metadata if you are not sure about ids and allowed values.
+Создание задачи выполняется через `POST /api/issues`. Точный JSON зависит от проекта и его custom fields, поэтому перед автоматизацией лучше проверить id проекта, доступные поля и допустимые значения.
 
-Minimal example:
+Минимальный пример:
 
 ```bash
 ./yt-api POST '/api/issues?fields=idReadable,summary' '{
   "project": {"shortName": "PROJECT"},
-  "summary": "Short issue title",
-  "description": "Issue description"
+  "summary": "Короткий заголовок задачи",
+  "description": "Описание задачи"
 }'
 ```
 
-## Safety Rules
+Если нужно выставлять статус, версию, исполнителя, теги или другие поля, сначала получите метаданные проекта и поля через YouTrack API, затем добавьте нужные `customFields` в тело запроса.
 
-- Do not commit real `.env` files.
-- Do not paste tokens into chat, tickets, logs, or command examples.
-- Use `fields=` in API requests to keep responses compact.
-- Read operations are usually safe to run directly.
-- For write operations, prepare a draft first and ask for explicit confirmation before sending the request.
-- If YouTrack returns `401` or `403`, refresh permissions or create a new token. Do not retry with passwords.
+## Правила безопасности
+
+- Не коммитьте реальные `.env`-файлы.
+- Не вставляйте токены в чат, задачи, логи или примеры команд.
+- Используйте `fields=` в API-запросах, чтобы ответы были компактными.
+- Операции чтения обычно можно выполнять сразу.
+- Перед созданием задачи, комментарием или изменением полей сначала подготовьте черновик и получите явное подтверждение.
+- Если YouTrack возвращает `401` или `403`, обновите права или создайте новый токен. Не используйте пароль вместо токена.

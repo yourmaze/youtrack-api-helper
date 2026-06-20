@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SECRET_FILE="${YOUTRACK_ENV_FILE:-$HOME/.config/youtrack-api-helper/youtrack.env}"
+
+usage() {
+  cat >&2 <<'USAGE'
+Usage:
+  yt-api METHOD API_PATH [JSON_BODY]
+
+Examples:
+  yt-api GET '/api/users/me?fields=id,login,fullName'
+  yt-api GET '/api/issues/PROJECT-123?fields=idReadable,summary,description'
+  yt-api POST '/api/issues/PROJECT-123/comments?fields=id,text' '{"text":"Comment text"}'
+
+Credentials are loaded from:
+  $YOUTRACK_ENV_FILE
+or:
+  ~/.config/youtrack-api-helper/youtrack.env
+USAGE
+}
+
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+  usage
+  exit 2
+fi
+
+if [[ ! -f "$SECRET_FILE" ]]; then
+  echo "YouTrack secret env file not found: $SECRET_FILE" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+. "$SECRET_FILE"
+set +a
+
+if [[ -z "${YOUTRACK_URL:-}" || -z "${YOUTRACK_TOKEN:-}" ]]; then
+  echo "YOUTRACK_URL and YOUTRACK_TOKEN must be set in $SECRET_FILE" >&2
+  exit 1
+fi
+
+METHOD="$1"
+API_PATH="$2"
+BODY="${3:-}"
+
+BASE_URL="${YOUTRACK_URL%/}"
+if [[ "$API_PATH" == http://* || "$API_PATH" == https://* ]]; then
+  URL="$API_PATH"
+elif [[ "$API_PATH" == /* ]]; then
+  URL="${BASE_URL}${API_PATH}"
+else
+  URL="${BASE_URL}/${API_PATH}"
+fi
+
+args=(
+  -sS
+  --fail-with-body
+  -X "$METHOD"
+  -H "Authorization: Bearer ${YOUTRACK_TOKEN}"
+  -H "Accept: application/json"
+)
+
+if [[ -n "$BODY" ]]; then
+  args+=(-H "Content-Type: application/json" --data "$BODY")
+fi
+
+curl "${args[@]}" "$URL"
